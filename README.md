@@ -64,3 +64,77 @@ If you wish to change the port from `5179` to another port:
 2. **`vite.config.ts`**: Edit the `port` value under the `server` and `preview` configuration objects.
 3. **`Dockerfile` & `Dockerfile.dev`**: Update the `EXPOSE` port command.
 4. **`docker-compose.yml`**: Update the port mappings (`YOUR_PORT:YOUR_PORT`).
+
+---
+
+## 🔒 Secure CI/CD VPS Deployment Guide (No-Compromise Policy)
+
+To deploy this application to your VPS without compromising other running services or security, follow this guide.
+
+### 1. GitHub Secrets Setup
+Add the following secrets to your GitHub Repository (**Settings > Secrets and variables > Actions > New repository secret**):
+
+| Secret Name | Description | Example / Best Practice |
+| :--- | :--- | :--- |
+| `VPS_HOST` | VPS Server IP address or domain | `192.168.1.50` or `app.domain.com` |
+| `VPS_USERNAME` | SSH username for deployment | **Deploy User** (e.g. `deployer`), *not* `root` (see below) |
+| `VPS_SSH_KEY` | Private SSH Key for authentication | RSA/ED25519 Private Key |
+| `VPS_PROJECT_PATH` | Path to project folder on VPS | `/var/www/autodeploy` |
+| `VPS_SSH_PORT` | SSH port of your server | `22` (default) or your custom port |
+
+---
+
+### 2. VPS Isolation Checklist
+
+#### A. Create a Dedicated Non-Root User (Recommended)
+Avoid deploying with the `root` user to prevent the CI/CD pipeline from having access to system-wide administrative functions.
+```bash
+# 1. Create user
+sudo adduser deployer
+
+# 2. Add deployer to docker group so it can run docker commands without sudo
+sudo usermod -aG docker deployer
+
+# 3. Create SSH key directory for user
+sudo mkdir -p /home/deployer/.ssh
+sudo chmod 700 /home/deployer/.ssh
+```
+
+#### B. SSH Key Isolation
+Generate a dedicated SSH key pair *only* for this deployment, rather than using your main personal SSH key.
+```bash
+# Generate key on your local machine
+ssh-keygen -t ed25519 -C "github-actions-deployer" -f ./id_deployer
+
+# Copy public key content to VPS
+# Add it to /home/deployer/.ssh/authorized_keys
+```
+
+#### C. Prevent Network Port Conflicts (Reverse Proxy Isolation)
+By default, Docker compose maps `"5179:5179"` which binds port `5179` to `0.0.0.0` (exposing it publicly on the internet, bypassing UFW firewalls). 
+* **If you use Nginx, Apache, or Caddy as a Reverse Proxy**:
+  To protect this application and other VPS services, modify `docker-compose.yml` on the VPS to bind only to the loopback interface (`127.0.0.1`):
+  ```yaml
+  ports:
+    - "127.0.0.1:5179:5179"
+  ```
+  Then route traffic using Nginx:
+  ```nginx
+  server {
+      listen 80;
+      server_name your-domain.com;
+
+      location / {
+          proxy_pass http://127.0.0.1:5179;
+          proxy_set_header Host $host;
+          proxy_set_header X-Real-IP $remote_addr;
+      }
+  }
+  ```
+
+#### D. Safe Docker Deployment commands
+The deployment pipeline defined in `.github/workflows/deploy.yml` uses surgical commands to guarantee that other VPS services are completely untouched:
+1. **Targeted builds**: `docker compose build app-prod` builds only this application.
+2. **Targeted deployment**: `docker compose up -d --no-deps app-prod` stops and restarts *only* the `app-prod` container. It ignores other services in the file and leaves unrelated Docker containers untouched.
+3. **Safe cleanup**: `docker image prune -f` only prunes dangling (untagged) build stages. It does **not** prune active images or system-wide volumes, ensuring other databases or services remain online.
+
