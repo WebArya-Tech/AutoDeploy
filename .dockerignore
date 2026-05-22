@@ -1,0 +1,11 @@
+node_modules
+dist
+.git
+.github
+.vscode
+.idea
+*.log
+.eslintcache
+Dockerfile*
+docker-compose*
+README.md

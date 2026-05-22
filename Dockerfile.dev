@@ -1,0 +1,16 @@
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Copy package files and install dependencies
+COPY package*.json ./
+RUN npm install
+
+# Copy source code (will be overridden by volume mount in compose for local dev)
+COPY . .
+
+# Expose Vite dev server port
+EXPOSE 5179
+
+# Run dev server with host flag (configured in vite.config.ts)
+CMD ["npm", "run", "dev"]

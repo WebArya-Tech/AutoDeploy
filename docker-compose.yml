@@ -1,0 +1,30 @@
+services:
+  app-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: vite-app-dev
+    ports:
+      - "5179:5179"
+    volumes:
+      - .:/app
+      # Avoid overriding node_modules inside container with host's empty/incompatible node_modules
+      - /app/node_modules
+    environment:
+      - NODE_ENV=development
+      - VITE_PORT=5179
+    env_file:
+      - .env
+
+  app-prod:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: vite-app-prod
+    ports:
+      - "5179:5179"
+    environment:
+      - NODE_ENV=production
+      - VITE_PORT=5179
+    env_file:
+      - .env
