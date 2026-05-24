@@ -74,10 +74,15 @@ jobs:
             echo "🐳 Building production image..."
             docker compose build app-prod
 
-            # 3. Re-create and restart ONLY the app-prod service
+            # 3. Prune unused networks to free up subnet space
+            echo "🧹 Pruning unused Docker networks..."
+            docker network prune -f
+
+            # 4. Re-create and restart ONLY the app-prod service
             echo "🚀 Restarting app-prod..."
             docker compose up -d --no-deps app-prod
 
-            # 4. Clean up dangling build images
+            # 5. Clean up dangling build images
             docker image prune -f
             echo "✅ Deployment complete!"
+

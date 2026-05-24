@@ -15,6 +15,8 @@ services:
       - VITE_PORT=5179
     env_file:
       - .env
+    networks:
+      - autodeploy-net
 
   app-prod:
     build:
@@ -28,3 +30,12 @@ services:
       - VITE_PORT=5179
     env_file:
       - .env
+    networks:
+      - autodeploy-net
+
+networks:
+  autodeploy-net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 10.10.0.0/24
