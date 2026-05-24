@@ -1,0 +1,12 @@
+FROM node:20-alpine AS ci
+
+WORKDIR /app
+
+# Copy package files first for layer caching
+COPY package*.json ./
+
+# Install ALL dependencies (including devDependencies needed for tsc & eslint)
+RUN npm ci
+
+# Copy full source
+COPY . .

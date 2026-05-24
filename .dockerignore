@@ -6,6 +6,5 @@ dist
 .idea
 *.log
 .eslintcache
-Dockerfile*
 docker-compose*
 README.md
