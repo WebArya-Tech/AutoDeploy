@@ -51,22 +51,33 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           port: ${{ secrets.VPS_SSH_PORT || 22 }}
           command_timeout: 5m
-          debug: true
           script: |
-            # Ensure the deployment script fails on error
             set -e
 
-            # 1. Navigate to the project directory on VPS
-            cd "${{ secrets.VPS_PROJECT_PATH }}"
+            PROJECT_PATH="${{ secrets.VPS_PROJECT_PATH }}"
+            REPO_URL="${{ github.server_url }}/${{ github.repository }}.git"
 
-            # 2. Pull the latest code safely
-            git pull origin main
+            # 1. Clone on first deploy, pull on subsequent deploys
+            if [ ! -d "$PROJECT_PATH/.git" ]; then
+              echo "📦 First deploy — cloning repository..."
+              mkdir -p "$PROJECT_PATH"
+              git clone "$REPO_URL" "$PROJECT_PATH"
+            fi
 
-            # 3. Rebuild ONLY the production container image
+            cd "$PROJECT_PATH"
+
+            echo "🔄 Pulling latest code..."
+            git fetch origin main
+            git reset --hard origin/main
+
+            # 2. Rebuild ONLY the production container image
+            echo "🐳 Building production image..."
             docker compose build app-prod
 
-            # 4. Re-create and restart ONLY the app-prod service, leaving all other VPS containers untouched
+            # 3. Re-create and restart ONLY the app-prod service
+            echo "🚀 Restarting app-prod..."
             docker compose up -d --no-deps app-prod
 
-            # 5. Clean up dangling build images (safely removes unused image cache without affecting active services)
+            # 4. Clean up dangling build images
             docker image prune -f
+            echo "✅ Deployment complete!"
