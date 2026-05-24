@@ -34,7 +34,15 @@ jobs:
   deploy:
     needs: test-and-lint
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
+      - name: Check VPS Port Reachability
+        run: |
+          PORT=${{ secrets.VPS_SSH_PORT || 22 }}
+          HOST=${{ secrets.VPS_HOST }}
+          echo "Testing TCP connectivity to $HOST:$PORT ..."
+          nc -zv -w 10 "$HOST" "$PORT" && echo "✅ Port is reachable" || echo "❌ Port is NOT reachable — check VPS firewall"
+
       - name: Deploy to VPS via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -42,6 +50,8 @@ jobs:
           username: ${{ secrets.VPS_USERNAME }}
           key: ${{ secrets.VPS_SSH_KEY }}
           port: ${{ secrets.VPS_SSH_PORT || 22 }}
+          command_timeout: 5m
+          debug: true
           script: |
             # Ensure the deployment script fails on error
             set -e
